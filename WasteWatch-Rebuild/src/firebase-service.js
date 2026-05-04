@@ -76,6 +76,26 @@ export class SyncService {
     return this.push("alerts", payload);
   }
 
+  clearReports() {
+    return this.remove("reports");
+  }
+
+  clearAlerts() {
+    return this.remove("alerts");
+  }
+
+  deleteActivity(id) {
+    return this.remove(`activity/${id}`);
+  }
+
+  resetStatuses(payload) {
+    return this.set("barangayStatuses", payload);
+  }
+
+  resetTrucks(payload) {
+    return this.set("trucks", payload);
+  }
+
   async write(path, payload) {
     if (!this.db) return { ok: false, reason: "offline" };
 
@@ -97,6 +117,30 @@ export class SyncService {
     } catch (error) {
       console.error(`Firebase push failed at ${path}`, error);
       return { ok: false, reason: "push-failed", error };
+    }
+  }
+
+  async set(path, payload) {
+    if (!this.db) return { ok: false, reason: "offline" };
+
+    try {
+      await this.db.ref(path).set(payload);
+      return { ok: true, payload };
+    } catch (error) {
+      console.error(`Firebase set failed at ${path}`, error);
+      return { ok: false, reason: "set-failed", error };
+    }
+  }
+
+  async remove(path) {
+    if (!this.db) return { ok: false, reason: "offline" };
+
+    try {
+      await this.db.ref(path).remove();
+      return { ok: true };
+    } catch (error) {
+      console.error(`Firebase remove failed at ${path}`, error);
+      return { ok: false, reason: "remove-failed", error };
     }
   }
 

@@ -31,6 +31,7 @@ const state = {
   alerts: [],
   seenAlerts: new Set(),
   loginRole: "driver",
+  driverTruckId: "truckA",
   live: false,
   sync: new SyncService(),
   gpsWatchId: null,
@@ -132,9 +133,14 @@ function handleAction(element, event) {
   if (action === "leave-driver") leaveDriver();
   if (action === "mark-collected") markCollected();
   if (action === "next-stop") moveToNextStop();
+  if (action === "select-driver-truck") selectDriverTruck(element.dataset.truckId);
   if (action === "open-report") openReportDialog();
   if (action === "close-report") closeReportDialog();
   if (action === "send-broadcast") sendBroadcast();
+  if (action === "clear-reports") clearReports();
+  if (action === "clear-alerts") clearAlerts();
+  if (action === "clear-history") clearHistory();
+  if (action === "reset-collections") resetCollections();
 
   event.preventDefault();
 }
@@ -224,15 +230,15 @@ function goHome() {
 
 function leaveDriver() {
   stopGps();
-  setTruckActive("truckA", false);
+  setTruckActive(state.driverTruckId, false);
   goHome();
 }
 
 function openDriver() {
   showScreen("driver");
   ensureMap("driver");
-  setTruckActive("truckA", true);
-  markNearby("truckA", state.trucks.truckA.currentBarangayId);
+  setTruckActive(state.driverTruckId, true);
+  markNearby(state.driverTruckId, state.trucks[state.driverTruckId].currentBarangayId);
   startGps();
   renderAll();
 }
@@ -325,8 +331,10 @@ function renderResidentStatusList() {
 }
 
 function renderDriverRoute() {
-  const truck = state.trucks.truckA;
-  const html = TRUCKS.truckA.route
+  const truckId = state.driverTruckId;
+  const truckConfig = TRUCKS[truckId];
+  const truck = state.trucks[truckId];
+  const html = truckConfig.route
     .map((id, index) => {
       const status = getStatus(id);
       const isCurrent = index === truck.routeIndex;
@@ -346,10 +354,14 @@ function renderDriverRoute() {
     .join("");
 
   document.getElementById("driver-route-list").innerHTML = html;
+  document.getElementById("driver-route-title").textContent = `${truckConfig.label} Route`;
   document.getElementById("driver-current-bgy").textContent = truck.currentBarangayName || "Outside mapped barangay";
   document.getElementById("driver-current-detail").textContent = truck.accuracy
-    ? `GPS live within ${Math.round(truck.accuracy)} m accuracy`
-    : "Using official barangay boundary route center";
+    ? `${truckConfig.label} GPS live within ${Math.round(truck.accuracy)} m accuracy`
+    : `${truckConfig.label} using official barangay boundary route center`;
+  document.querySelectorAll("[data-action='select-driver-truck']").forEach((button) => {
+    button.classList.toggle("active", button.dataset.truckId === truckId);
+  });
 }
 
 function renderAdminStats() {
@@ -455,7 +467,7 @@ function syncTruckMarkers(view) {
 
   Object.values(state.trucks).forEach((truck) => {
     const key = `${view}-${truck.id}`;
-    const shouldShow = truck.active && (view !== "driver" || truck.id === "truckA");
+    const shouldShow = truck.active && (view !== "driver" || truck.id === state.driverTruckId);
     const existing = state.truckMarkers[key];
 
     if (!shouldShow) {
@@ -482,37 +494,57 @@ function focusBarangay(id) {
   Object.values(state.boundaryControllers).forEach((controller) => controller.focus(id));
 }
 
+function selectDriverTruck(truckId) {
+  if (!TRUCKS[truckId] || state.driverTruckId === truckId) return;
+
+  state.driverTruckId = truckId;
+  setTruckActive(truckId, true);
+  markNearby(truckId, state.trucks[truckId].currentBarangayId);
+
+  if (state.maps.driver) {
+    const truck = state.trucks[truckId];
+    state.maps.driver.panTo([truck.lat, truck.lng], { animate: true });
+  }
+
+  showToast("truck", `${TRUCKS[truckId].label} Selected`, `This device is now controlling ${TRUCKS[truckId].label}.`);
+  renderAll();
+}
+
 function markCollected() {
-  const truck = state.trucks.truckA;
-  const id = truck.currentBarangayId || TRUCKS.truckA.route[truck.routeIndex];
-  setBarangayStatus(id, STATUS.COLLECTED, "driver", "truckA");
+  const truckId = state.driverTruckId;
+  const truckConfig = TRUCKS[truckId];
+  const truck = state.trucks[truckId];
+  const id = truck.currentBarangayId || truckConfig.route[truck.routeIndex];
+  setBarangayStatus(id, STATUS.COLLECTED, "driver", truckId);
   addActivity({
     type: "collected",
     icon: "check-circle",
     title: `${getBarangayName(id)} Collected`,
-    message: "Marked complete by Truck A."
+    message: `Marked complete by ${truckConfig.label}.`
   });
   showToast("check-circle", "Collection Marked", `${getBarangayName(id)} is now collected.`);
 }
 
 function moveToNextStop() {
-  const truck = state.trucks.truckA;
-  if (truck.routeIndex >= TRUCKS.truckA.route.length - 1) {
-    showToast("party-popper", "Route Complete", "All Truck A stops are done.");
+  const truckId = state.driverTruckId;
+  const truckConfig = TRUCKS[truckId];
+  const truck = state.trucks[truckId];
+  if (truck.routeIndex >= truckConfig.route.length - 1) {
+    showToast("party-popper", "Route Complete", `All ${truckConfig.label} stops are done.`);
     return;
   }
 
   const nextIndex = truck.routeIndex + 1;
-  const nextId = TRUCKS.truckA.route[nextIndex];
-  updateTruckRoute("truckA", nextIndex, nextId, truck.source !== "gps");
-  markNearby("truckA", nextId);
+  const nextId = truckConfig.route[nextIndex];
+  updateTruckRoute(truckId, nextIndex, nextId, truck.source !== "gps");
+  markNearby(truckId, nextId);
   addActivity({
     type: "nearby",
     icon: "map-pin",
-    title: `Truck A heading to ${getBarangayName(nextId)}`,
+    title: `${truckConfig.label} heading to ${getBarangayName(nextId)}`,
     message: "Residents nearby can prepare waste for collection."
   });
-  showToast("truck", "Next Stop", `Truck A is heading to ${getBarangayName(nextId)}.`);
+  showToast("truck", "Next Stop", `${truckConfig.label} is heading to ${getBarangayName(nextId)}.`);
 }
 
 function updateTruckRoute(truckId, routeIndex, barangayId, moveToCenter) {
@@ -592,15 +624,16 @@ function stopGps() {
 }
 
 function handleGpsPosition(position) {
+  const truckId = state.driverTruckId;
   const lat = position.coords.latitude;
   const lng = position.coords.longitude;
   const accuracy = position.coords.accuracy;
   const feature = findBarangayAt(lat, lng, state.features);
-  const currentId = feature?.properties.id || state.trucks.truckA.currentBarangayId;
+  const currentId = feature?.properties.id || state.trucks[truckId].currentBarangayId;
   const currentName = feature?.properties.name || "Outside mapped barangay";
 
-  state.trucks.truckA = {
-    ...state.trucks.truckA,
+  state.trucks[truckId] = {
+    ...state.trucks[truckId],
     active: true,
     lat,
     lng,
@@ -612,11 +645,11 @@ function handleGpsPosition(position) {
   };
 
   if (feature) {
-    markNearby("truckA", currentId);
+    markNearby(truckId, currentId);
   }
 
   document.getElementById("driver-gps-copy").textContent = `GPS live within ${Math.round(accuracy)} m`;
-  syncTruck("truckA");
+  syncTruck(truckId);
   renderAll();
 }
 
@@ -704,6 +737,65 @@ function sendBroadcast() {
   document.getElementById("broadcast-count").textContent = "0/140";
   showToast("megaphone", "Broadcast Sent", message);
   renderSentAlerts();
+}
+
+function clearReports() {
+  if (!window.confirm("Clear all community reports from the admin panel and Firebase?")) return;
+
+  state.reports = [];
+  if (state.live) {
+    persistSync(state.sync.clearReports(), "Community reports");
+  }
+  showToast("trash-2", "Reports Cleared", "Community reports are now clean.");
+  renderAll();
+}
+
+function clearAlerts() {
+  if (!window.confirm("Clear all sent community alerts from Firebase?")) return;
+
+  state.alerts = [];
+  state.seenAlerts.clear();
+  if (state.live) {
+    persistSync(state.sync.clearAlerts(), "Community alerts");
+  }
+  showToast("trash-2", "Alerts Cleared", "Sent alerts are now clean.");
+  renderAll();
+}
+
+function clearHistory() {
+  if (!window.confirm("Clear collection history entries from Firebase? Barangay statuses will not be reset.")) return;
+
+  const collectedEntries = state.activity.filter((item) => item.type === "collected" && item.id);
+  state.activity = state.activity.filter((item) => item.type !== "collected");
+
+  if (state.live && collectedEntries.length) {
+    persistSync(
+      Promise.all(collectedEntries.map((item) => state.sync.deleteActivity(item.id))).then((results) =>
+        results.every((result) => result?.ok) ? { ok: true } : { ok: false, reason: "partial-delete" }
+      ),
+      "Collection history"
+    );
+  }
+
+  showToast("trash-2", "History Cleared", "Collection history is now clean.");
+  renderAll();
+}
+
+function resetCollections() {
+  if (!window.confirm("Reset all barangays back to To Collect and move trucks to route starts?")) return;
+
+  stopGps();
+  state.statuses = createInitialStatuses(state.features);
+  state.trucks = createInitialTrucks();
+  state.driverTruckId = "truckA";
+
+  if (state.live) {
+    persistSync(state.sync.resetStatuses(state.statuses), "Collection statuses");
+    persistSync(state.sync.resetTrucks(state.trucks), "Truck routes");
+  }
+
+  showToast("rotate-ccw", "Collections Reset", "All barangays are back to To Collect.");
+  renderAll();
 }
 
 function addActivity(entry) {

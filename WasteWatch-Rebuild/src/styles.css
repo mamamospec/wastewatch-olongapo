@@ -586,6 +586,28 @@ textarea.text-field {
   border-radius: var(--radius);
 }
 
+.truck-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.truck-switch button {
+  min-height: 36px;
+  color: var(--muted);
+  background: var(--navy-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-weight: 900;
+}
+
+.truck-switch button.active {
+  color: var(--navy);
+  background: var(--yellow);
+  border-color: var(--yellow);
+}
+
 .eyebrow {
   display: block;
   color: var(--muted);
@@ -762,11 +784,31 @@ textarea.text-field {
 }
 
 .progress-head,
+.section-row,
 .broadcast-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+.section-row {
+  margin: 0 0 10px;
+}
+
+.section-row .section-title {
+  margin: 0;
+}
+
+.danger-btn {
+  color: #ffd9d9;
+  border-color: rgba(255, 107, 107, 0.32);
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.danger-btn:hover {
+  color: #fff;
+  border-color: rgba(255, 107, 107, 0.72);
 }
 
 .progress-head span,
