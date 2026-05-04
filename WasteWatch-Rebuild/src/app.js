@@ -35,6 +35,7 @@ const state = {
   sync: new SyncService(),
   gpsWatchId: null,
   toastTimer: null,
+  lastSyncWarningAt: 0,
   demoTimer: null,
   demoTick: 0
 };
@@ -553,7 +554,7 @@ function setBarangayStatus(id, status, updatedBy, truckId, shouldSync = true) {
   renderAll();
 
   if (shouldSync && state.live) {
-    state.sync.setBarangayStatus(id, state.statuses[id]);
+    persistSync(state.sync.setBarangayStatus(id, state.statuses[id]), "Barangay status");
   }
 }
 
@@ -626,7 +627,7 @@ function handleGpsError(error) {
 
 function syncTruck(truckId) {
   if (state.live) {
-    state.sync.updateTruck(truckId, state.trucks[truckId]);
+    persistSync(state.sync.updateTruck(truckId, state.trucks[truckId]), "Truck location");
   }
 }
 
@@ -647,7 +648,7 @@ function submitReport() {
 
   state.reports.unshift(report);
   if (state.live) {
-    state.sync.pushReport({ ...report, id: null });
+    persistSync(state.sync.pushReport({ ...report, id: null }), "Community report");
   }
 
   addActivity({
@@ -670,7 +671,7 @@ function resolveReport(id) {
   report.resolvedAt = nowStamp();
 
   if (state.live && !id.startsWith("local-")) {
-    state.sync.resolveReport(id, { resolved: true, resolvedAt: report.resolvedAt });
+    persistSync(state.sync.resolveReport(id, { resolved: true, resolvedAt: report.resolvedAt }), "Report resolution");
   }
 
   showToast("check", "Report Resolved", `${report.barangayName} report was marked resolved.`);
@@ -696,7 +697,7 @@ function sendBroadcast() {
   state.alerts.unshift(alert);
   state.seenAlerts.add(alert.id);
   if (state.live) {
-    state.sync.pushAlert({ ...alert, id: null });
+    persistSync(state.sync.pushAlert({ ...alert, id: null }), "Broadcast alert");
   }
 
   input.value = "";
@@ -716,10 +717,36 @@ function addActivity(entry) {
   state.activity.unshift(activity);
   state.activity = state.activity.slice(0, 40);
   if (state.live) {
-    state.sync.pushActivity({ ...activity, id: null });
+    persistSync(state.sync.pushActivity({ ...activity, id: null }), "Activity log");
   }
   renderActivity();
   renderHistory();
+}
+
+function persistSync(operation, label) {
+  if (!operation || typeof operation.then !== "function") return;
+
+  operation
+    .then((result) => {
+      if (result?.ok === false) {
+        showPersistenceProblem(label, result.error || result.reason);
+        return;
+      }
+      if (state.live) {
+        setMode("Live Sync", true);
+      }
+    })
+    .catch((error) => showPersistenceProblem(label, error));
+}
+
+function showPersistenceProblem(label, error) {
+  console.error(`${label} was not saved to Firebase.`, error);
+  setMode("Live Read Only", false);
+
+  const now = Date.now();
+  if (now - state.lastSyncWarningAt < 4500) return;
+  state.lastSyncWarningAt = now;
+  showToast("cloud-off", "Firebase Save Blocked", `${label} was not saved. Check Realtime Database rules.`);
 }
 
 function applyRemoteStatuses(remoteStatuses) {

@@ -77,15 +77,27 @@ export class SyncService {
   }
 
   async write(path, payload) {
-    if (!this.db) return null;
-    await this.db.ref(path).update(payload);
-    return payload;
+    if (!this.db) return { ok: false, reason: "offline" };
+
+    try {
+      await this.db.ref(path).update(payload);
+      return { ok: true, payload };
+    } catch (error) {
+      console.error(`Firebase write failed at ${path}`, error);
+      return { ok: false, reason: "write-failed", error };
+    }
   }
 
   async push(path, payload) {
-    if (!this.db) return null;
-    const ref = await this.db.ref(path).push(payload);
-    return ref.key;
+    if (!this.db) return { ok: false, reason: "offline" };
+
+    try {
+      const ref = await this.db.ref(path).push(payload);
+      return { ok: true, key: ref.key };
+    } catch (error) {
+      console.error(`Firebase push failed at ${path}`, error);
+      return { ok: false, reason: "push-failed", error };
+    }
   }
 
   waitForConnection() {
