@@ -137,6 +137,10 @@
           <i data-lucide="panel-left"></i>
         </button>
         <div class="driver-card">
+          <div class="truck-switch" aria-label="Choose assigned truck">
+            <button class="active" type="button" data-action="select-driver-truck" data-truck-id="truckA">Truck A</button>
+            <button type="button" data-action="select-driver-truck" data-truck-id="truckB">Truck B</button>
+          </div>
           <span class="eyebrow">Current Barangay</span>
           <strong id="driver-current-bgy">Loading map</strong>
           <small id="driver-current-detail">Official boundary geofence</small>
@@ -152,7 +156,7 @@
           </div>
         </div>
         <div class="panel-body route-panel">
-          <h2>Truck A Route</h2>
+          <h2 id="driver-route-title">Truck A Route</h2>
           <div id="driver-route-list" class="route-list"></div>
         </div>
       </aside>
@@ -179,6 +183,13 @@
         </nav>
         <main class="admin-main">
           <section class="admin-section active" id="admin-overview">
+            <div class="section-row">
+              <h2 class="section-title">Today</h2>
+              <button class="secondary-btn danger-btn" type="button" data-action="reset-collections">
+                <i data-lucide="rotate-ccw"></i>
+                Reset Collections
+              </button>
+            </div>
             <div class="stats-grid">
               <article class="stat-card"><span id="stat-collected">0</span><small>Collected</small></article>
               <article class="stat-card"><span id="stat-nearby">0</span><small>Nearby</small></article>
@@ -202,12 +213,24 @@
           </section>
 
           <section class="admin-section" id="admin-reports">
-            <h2 class="section-title">Community Reports</h2>
+            <div class="section-row">
+              <h2 class="section-title">Community Reports</h2>
+              <button class="secondary-btn danger-btn" type="button" data-action="clear-reports">
+                <i data-lucide="trash-2"></i>
+                Clear Reports
+              </button>
+            </div>
             <div id="admin-reports-list" class="report-list"></div>
           </section>
 
           <section class="admin-section" id="admin-history">
-            <h2 class="section-title">Collection History</h2>
+            <div class="section-row">
+              <h2 class="section-title">Collection History</h2>
+              <button class="secondary-btn danger-btn" type="button" data-action="clear-history">
+                <i data-lucide="trash-2"></i>
+                Clear History
+              </button>
+            </div>
             <div id="history-list" class="activity-list"></div>
           </section>
 
@@ -223,6 +246,13 @@
                   Send Alert
                 </button>
               </div>
+            </div>
+            <div class="section-row">
+              <h2 class="section-title">Sent Alerts</h2>
+              <button class="secondary-btn danger-btn" type="button" data-action="clear-alerts">
+                <i data-lucide="trash-2"></i>
+                Clear Alerts
+              </button>
             </div>
             <div id="sent-alerts-list" class="activity-list"></div>
           </section>
